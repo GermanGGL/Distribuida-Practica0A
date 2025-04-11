@@ -1,96 +1,91 @@
-document.getElementById('loginForm').addEventListener('submit', function (event) {
-    event.preventDefault(); // Previene el envío por defecto
+document.addEventListener("DOMContentLoaded", function() {
+    document.getElementById('loginForm').addEventListener('submit', function (event) {
+        event.preventDefault();
 
-    // Obtener los valores de los campos
-    const nombre = document.getElementById('nombre');
-    const NIP = document.getElementById('NIP');
-    const email = document.getElementById('email');
-    const password = document.getElementById('password');
-    const terminos = document.getElementById('terminos');
-    const mensaje = document.getElementById('mensaje');
+        // Obtener los valores de los campos
+        const nombre = document.getElementById('nombre').value.trim();
+        const NIP = document.getElementById('NIP').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const experiencia = document.querySelector('input[name="experiencia"]:checked');
+        const mensajeDiv = document.getElementById('mensaje');
 
-    let esValido = true;
+        // Limpiar mensajes previos
+        mensajeDiv.innerHTML = '';
 
-    // Validar nombre
-    if (nombre.value.trim() === '') {
-        nombre.classList.add('is-invalid');
-        esValido = false;
-    } else {
-        nombre.classList.remove('is-invalid');
-    }
+        let esValido = true;
+        let mensajesError = [];
 
-    // Validar NIP
-    const regexNIP = /^\d{8}[A-Za-z]$/; // 8 dígitos seguidos de una letra
-
-    if (!regexNIP.test(NIP.value.trim())) {
-        NIP.classList.add('is-invalid');
-        esValido = false;
-    } else {
-        NIP.classList.remove('is-invalid');
-    }
-
-
-    // Validar email
-    const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!regexEmail.test(email.value.trim())) {
-        email.classList.add('is-invalid');
-        esValido = false;
-    } else {
-        email.classList.remove('is-invalid');
-    }
-
-    // Validar contraseña
-    const regexPassword = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
-    if (!regexPassword.test(password.value)) {
-        password.classList.add('is-invalid');
-        esValido = false;
-    } else {
-        password.classList.remove('is-invalid');
-    }
-
-    // Validar términos
-    if (!terminos.checked) {
-        terminos.classList.add('is-invalid');
-        esValido = false;
-    } else {
-        terminos.classList.remove('is-invalid');
-    }
-
-    // Mensaje final
-    if (esValido) {
-        mensaje.innerHTML = `<div class="alert alert-success">✅ ¡Bienvenido, ${nombre.value}!</div>`;
-    } else {
-        mensaje.innerHTML = `<div class="alert alert-danger">❌ Revisa los campos e intenta nuevamente.</div>`;
-    }
-    
-    fetch('practica0A', {
-        method: 'POST', 
-        headers:{
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            nombre: nombre.value.trim(),
-            NIP: NIP.value.trim(),
-            email: email.value.trim,
-            password: password.value.trim()
-        })        
-    })
-    .then(response => {
-        if(!response.ok){
-            throw new Error('Error en la respuesta del servidor');
+        // Validar que ningún campo esté vacío
+        if (nombre === '' || NIP === '' || email === '' || password === '' || confirmPassword === '') {
+            esValido = false;
+            mensajesError.push("Todos los campos son obligatorios.");
         }
-        return response.json();
-    })
-    .then(data => {
-        if(data.sucess){
-            mensaje.innerHTML = `<div class="alert alert-success">✅ ¡Bienvenido, ${data.nombre}!</div>`;        
-        } else{
-            mensaje.innerHTML = `<div class="alert alert-danger">⚠️ ${data.message}</div>`;
+
+        // Validar NIF: 8 dígitos seguidos de una letra (mayúscula o minúscula)
+        const nifRegex = /^\d{8}[A-Za-z]$/;
+        if (!nifRegex.test(NIP)) {
+            esValido = false;
+            mensajesError.push("El NIF debe tener 8 dígitos seguidos de una letra.");
         }
-    })
-    .catch(error =>{
-        ('Error', error);
-        mensaje.innerHTML = `<div class="alert alert-danger">❌ Ocurrió un error al procesar tu solicitud.</div>`;
-        
+
+        // Validar correo electrónico (formato básico que asegure que hay un dominio)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            esValido = false;
+            mensajesError.push("El correo electrónico no es válido.");
+        }
+
+        // Validar que las dos contraseñas coincidan
+        if (password !== confirmPassword) {
+            esValido = false;
+            mensajesError.push("Las contraseñas no coinciden.");
+        }
+
+        // Validar que se haya seleccionado una opción en la pregunta
+        if (!experiencia) {
+            esValido = false;
+            mensajesError.push("Debe seleccionar al menos una opción en la pregunta de experiencia.");
+        }
+
+        // Mostrar errores en el DOM si existen
+        if (!esValido) {
+            let htmlErrores = '<div class="alert alert-danger" role="alert"><ul>';
+            mensajesError.forEach(function(error) {
+                htmlErrores += '<li>' + error + '</li>';
+            });
+            htmlErrores += '</ul></div>';
+            mensajeDiv.innerHTML = htmlErrores;
+            return;
+        }
+
+        // En caso de que la validación sea correcta, enviar los datos al servlet
+        // Se incluye además el dato de experiencia
+        fetch('SvRegistro', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                nombre: nombre,
+                NIP: NIP,
+                email: email,
+                password: password,
+                experiencia: experiencia ? experiencia.value : ''
+            })
+        })
+        .then(response => response.text())
+        .then(data => {
+            console.log(data); // Maneja la respuesta del Servlet
+            window.location.href = "inventario.jsp";
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            mensajeDiv.innerHTML = '<div class="alert alert-danger" role="alert">Ocurrió un error en el envío.</div>';
+        });
     });
 });
+
+
+//});
